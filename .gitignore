@@ -1,0 +1,23 @@
+# Build output
+ONAIR.exe
+*.obj
+*.pdb
+
+# Portable runtime (third-party binaries — not committed)
+bin/
+lib/
+libexec/
+scrcpy/
+
+# User data / generated at runtime
+settings.txt
+android-device.txt
+phones.txt
+needed-dlls.txt
+
+# Recordings / screenshots
+*.mp4
+annot_*.png
+
+# Legacy / superseded
+ONAIR.ps1
