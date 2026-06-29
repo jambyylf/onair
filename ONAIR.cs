@@ -268,6 +268,8 @@ namespace OnAirApp {
     [DllImport("user32.dll")] static extern bool MoveWindow(IntPtr h, int x, int y, int w, int ht, bool r);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr h, uint f);
+    [DllImport("shcore.dll")] static extern int GetDpiForMonitor(IntPtr m, int t, out uint x, out uint y);
     const uint WM_CLOSE = 0x0010;
     struct RECT { public int Left, Top, Right, Bottom; }
     const int GWL_STYLE = -16;
@@ -278,7 +280,7 @@ namespace OnAirApp {
     string baseDir, uxplay, scrcpyDir, scrcpy, adb, deviceFile;
     string[] uxArgs = { "-n","ONAIR","-s","1920x1080","-vs","d3d11videosink","-as","wasapisink" };
 
-    Process procIos, procAndroid;
+    Process procIos, procAndroid, recProc;
     IntPtr  childIos = IntPtr.Zero, childAndroid = IntPtr.Zero;
     Size    natIos = Size.Empty, natAndroid = Size.Empty;
     bool    embIos = false, embAndroid = false;
@@ -291,7 +293,7 @@ namespace OnAirApp {
     Timer timer;
 
     bool recording = false;
-    string recIos = null, recAndroid = null, recDir;
+    string recIos = null, recAndroid = null, recDir, recPath = null;
 
     Panel tools;
     RoundButton btnShot, btnRotate, btnFull;
@@ -461,6 +463,21 @@ namespace OnAirApp {
         this.Shown += delegate { BeginInvoke(new Action(delegate { StartAndroid(); })); };
         Timer t3 = new Timer(); t3.Interval = 8000;
         t3.Tick += delegate { t3.Stop(); if (embAndroid && !annotating) ToggleAnnot(); }; t3.Start();
+      }
+      if (Environment.GetEnvironmentVariable("ONAIR_TESTREC") == "1") {
+        // Жазуды дереккөзсіз тексеру: панельді 5 сек жазып, файлды тексеру үшін жабамыз
+        this.Shown += delegate {
+          Timer ta = new Timer(); ta.Interval = 1500;
+          ta.Tick += delegate {
+            ta.Stop();
+            try { Directory.CreateDirectory(recDir); } catch {}
+            recPath = Path.Combine(recDir, "TESTREC.mp4");
+            recProc = SpawnPanelCapture(recPath);
+            Timer tb = new Timer(); tb.Interval = 5000;
+            tb.Tick += delegate { tb.Stop(); try { if (recProc != null && !recProc.HasExited) recProc.Kill(); } catch {} this.Close(); }; tb.Start();
+          };
+          ta.Start();
+        };
       }
     }
 
@@ -972,7 +989,6 @@ namespace OnAirApp {
       ProcessStartInfo psi = new ProcessStartInfo();
       psi.FileName = uxplay;
       string ia = string.Join(" ", uxArgs) + " -fps " + iosFps;
-      if (recIos != null) ia += " -mp4 \"" + recIos + "\"";
       psi.Arguments = ia;
       psi.UseShellExecute = false; psi.CreateNoWindow = true;
       psi.WorkingDirectory = Path.Combine(baseDir, "bin");
@@ -1022,7 +1038,6 @@ namespace OnAirApp {
       aa += " --max-fps=" + aMaxFps + " --video-bit-rate=" + aBitRate + "M";
       if (androidLandscape) aa += " --display-orientation=90";
       if (screenOff) aa += " --turn-screen-off";
-      if (recAndroid != null) aa += " --record=\"" + recAndroid + "\"";
       psi.Arguments = aa;
       psi.UseShellExecute = false; psi.CreateNoWindow = true;
       psi.WorkingDirectory = scrcpyDir;
@@ -1086,33 +1101,61 @@ namespace OnAirApp {
     void ToggleRecord() {
       if (!IosRunning && !AndroidRunning) return;
       if (!recording) {
-        // Жазуды бастау: эфирдегі дереккөз(дер)ді жазумен қайта қосу
+        // Жазуды бастау: видео-панельді бөлек GStreamer процесімен .mp4-ке жазамыз.
+        // uxplay/scrcpy-ге МҮЛДЕ тиіспейміз → AirPlay/Android ағыны үзілмейді, қайта таңдау қажет емес.
         try { Directory.CreateDirectory(recDir); } catch {}
         string ts = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-        if (IosRunning)     { recIos     = Path.Combine(recDir, "iPhone_" + ts);          StartIos(); }
-        if (AndroidRunning) { recAndroid = Path.Combine(recDir, "Android_" + ts + ".mp4"); StartAndroid(); }
+        string who = (IosRunning && AndroidRunning) ? "ONAIR" : (IosRunning ? "iPhone" : "Android");
+        recPath = Path.Combine(recDir, who + "_" + ts + ".mp4");
+        recProc = SpawnPanelCapture(recPath);
+        if (recProc == null) { recPath = null; return; }
         recStart = DateTime.Now;
         recording = true;
         UpdateUi();
-        if (recIos != null)
-          MessageBox.Show(S("ios_rec"), "ONAIR — iPhone", MessageBoxButtons.OK, MessageBoxIcon.Information);
       } else {
-        // Жазуды тоқтату: файл дұрыс жабылуы үшін терезені сыпайы жабамыз, сосын жазусыз жалғастырамыз
+        // Жазуды тоқтату: процесті жабамыз (moov үнемі жаңарып тұрғандықтан файл бүтін)
         recording = false;
-        bool iosWas = IosRunning, andWas = AndroidRunning;
-        if (iosWas && childIos != IntPtr.Zero)     PostMessage(childIos, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-        if (andWas && childAndroid != IntPtr.Zero) PostMessage(childAndroid, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-        WaitExit(procIos, 3500); WaitExit(procAndroid, 3500);
-        KillProcs("uxplay"); KillProcs("scrcpy");
-        procIos = null; procAndroid = null;
-        embIos = false; embAndroid = false; childIos = IntPtr.Zero; childAndroid = IntPtr.Zero;
-        recIos = null; recAndroid = null;
-        if (iosWas) StartIos();
-        if (andWas) StartAndroid();
+        try { if (recProc != null && !recProc.HasExited) recProc.Kill(); } catch {}
+        recProc = null;
+        KillProcs("gst-launch-1.0");
         UpdateUi();
-        try { Process.Start("explorer.exe", "\"" + recDir + "\""); } catch {}
+        try {
+          if (recPath != null && File.Exists(recPath)) Process.Start("explorer.exe", "/select,\"" + recPath + "\"");
+          else Process.Start("explorer.exe", "\"" + recDir + "\"");
+        } catch {}
+        recPath = null;
       }
     }
+    // Видео-панельді .mp4-ке жазатын GStreamer процесін бастау (crash-safe moov, өлтіруге төзімді)
+    Process SpawnPanelCapture(string outPath) {
+      string gst = Path.Combine(baseDir, "bin", "gst-launch-1.0.exe");
+      if (!File.Exists(gst)) { MessageBox.Show("gst-launch-1.0.exe табылмады:\n" + gst, "ONAIR", MessageBoxButtons.OK, MessageBoxIcon.Error); return null; }
+      // Видео-панельдің ФИЗИКАЛЫҚ экран тіктөртбұрышы (DPI масштабын ескере отырып)
+      Rectangle rc = video.RectangleToScreen(video.ClientRectangle);
+      IntPtr hmon = MonitorFromWindow(this.Handle, 2);              // ONAIR қай мониторда тұр
+      Rectangle mb = Screen.FromHandle(this.Handle).Bounds;         // сол монитордың шекарасы (виртуал координат)
+      double scale = 1.0;
+      try { uint dx, dy; if (GetDpiForMonitor(hmon, 0, out dx, out dy) == 0 && dx > 0) scale = dx / 96.0; } catch {}
+      // қию координатасын СОЛ МОНИТОРДЫҢ басынан есептейміз (физикалық пиксель)
+      int cx = (int)Math.Round((rc.X - mb.X) * scale), cy = (int)Math.Round((rc.Y - mb.Y) * scale);
+      int cw = (int)Math.Round(rc.Width * scale), ch = (int)Math.Round(rc.Height * scale);
+      cw -= cw % 2; ch -= ch % 2;
+      if (cw < 32 || ch < 32) { MessageBox.Show("Жазу аймағы тым кіші.", "ONAIR"); return null; }
+      int br = Math.Max(2, aBitRate) * 1000000;   // bit/сек
+      string pipe = "d3d11screencapturesrc monitor-handle=" + hmon.ToInt64() + " show-cursor=false"
+        + " crop-x=" + cx + " crop-y=" + cy + " crop-width=" + cw + " crop-height=" + ch
+        + " ! d3d11download ! videoconvert ! videorate ! video/x-raw,framerate=30/1"
+        + " ! openh264enc bitrate=" + br + " ! h264parse"
+        + " ! mp4mux reserved-max-duration=7200000000000 reserved-moov-update-period=1000000000"
+        + " ! filesink location=" + outPath.Replace('\\', '/');
+      ProcessStartInfo psi = new ProcessStartInfo();
+      psi.FileName = gst; psi.Arguments = pipe;
+      psi.UseShellExecute = false; psi.CreateNoWindow = true;
+      psi.WorkingDirectory = Path.Combine(baseDir, "bin");
+      try { return Process.Start(psi); }
+      catch (Exception ex) { MessageBox.Show("Қате: " + ex.Message, "ONAIR"); return null; }
+    }
+
     void WaitExit(Process p, int ms) { try { if (p != null && !p.HasExited) p.WaitForExit(ms); } catch {} }
 
     // ===================== Жаңа телефон жұптау терезесі =====================

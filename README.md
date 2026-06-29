@@ -52,7 +52,7 @@ This runs:
 ```
 ONAIR.exe
 onair.ico, logo.png
-bin\                          uxplay.exe + GStreamer DLLs
+bin\                          uxplay.exe + gst-launch-1.0.exe + GStreamer DLLs
 lib\gstreamer-1.0\            GStreamer plugins
 libexec\gstreamer-1.0\gst-plugin-scanner.exe
 scrcpy\                       scrcpy.exe + adb.exe
