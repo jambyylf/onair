@@ -837,7 +837,7 @@ namespace OnAirApp {
     // ===================== Баптаулар терезесі =====================
     void OpenSettings() {
       Form d = new Form();
-      d.Text = S("settings"); d.ClientSize = new Size(450, 752);
+      d.Text = S("settings"); d.ClientSize = new Size(450, 786);
       d.StartPosition = FormStartPosition.CenterParent; d.FormBorderStyle = FormBorderStyle.FixedDialog;
       d.MaximizeBox = false; d.MinimizeBox = false; d.BackColor = Brand.Bg; d.Font = new Font("Segoe UI", 9);
       try { d.Icon = this.Icon; } catch {}
@@ -868,11 +868,21 @@ namespace OnAirApp {
       Panel aboutSep = new Panel(); aboutSep.Size = new Size(404, 1); aboutSep.Location = new Point(22, y); aboutSep.BackColor = Brand.Hair; d.Controls.Add(aboutSep);
       y += 14;
       Label about = new Label();
-      about.AutoSize = false; about.Size = new Size(406, 72); about.Location = new Point(24, y);
+      about.AutoSize = false; about.Size = new Size(406, 56); about.Location = new Point(24, y);
       about.ForeColor = Brand.FgMute; about.Font = new Font("Segoe UI", 9.5f); about.TextAlign = ContentAlignment.TopLeft;
       about.Text = "ONAIR  ·  " + APP_VERSION + "\nҚұрастырушы / Developer: Жамбыл\n© 2026  ·  ашық бастапқы: UxPlay · scrcpy · GStreamer";
       d.Controls.Add(about);
-      y += 80;
+      y += 60;
+      // Instagram — басуға болатын сілтеме
+      LinkLabel ig = new LinkLabel();
+      ig.Text = "Instagram: @jambyyl"; ig.AutoSize = true; ig.Location = new Point(24, y);
+      ig.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
+      ig.LinkColor = Brand.Viobl; ig.ActiveLinkColor = Brand.Fg; ig.VisitedLinkColor = Brand.Viobl;
+      ig.LinkBehavior = LinkBehavior.HoverUnderline; ig.BackColor = Color.Transparent; ig.Cursor = Cursors.Hand;
+      string igUrl = "https://www.instagram.com/jambyyl";
+      ig.LinkClicked += delegate { try { Process.Start(igUrl); } catch {} };
+      d.Controls.Add(ig);
+      y += 34;
 
       RoundButton close = new RoundButton();
       close.Text = S("close"); close.Font = new Font("Segoe UI Semibold", 10.5f, FontStyle.Bold);
