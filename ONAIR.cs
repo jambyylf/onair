@@ -351,7 +351,7 @@ namespace OnAirApp {
 
       Text = "ONAIR";
       ClientSize = new Size(470, 650);
-      MinimumSize = new Size(404, 360);
+      MinimumSize = new Size(430, 360);
       StartPosition = FormStartPosition.CenterScreen;
       FormBorderStyle = FormBorderStyle.Sizable;
       BackColor = Brand.Bg;
@@ -909,15 +909,19 @@ namespace OnAirApp {
     }
 
     void DrawGear(Graphics g, float cx, float cy, float r, Color c) {
-      using (Pen pen = new Pen(c, 1.8f)) {
+      using (Pen pen = new Pen(c, 2f)) {
         pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
-        g.DrawEllipse(pen, cx - r * 0.42f, cy - r * 0.42f, r * 0.84f, r * 0.84f);
+        // тістер (денеге жалғасады)
         for (int i = 0; i < 8; i++) {
           double a = i * Math.PI / 4;
-          g.DrawLine(pen, (float)(cx + Math.Cos(a) * r * 0.52), (float)(cy + Math.Sin(a) * r * 0.52),
-                          (float)(cx + Math.Cos(a) * r * 0.92), (float)(cy + Math.Sin(a) * r * 0.92));
+          g.DrawLine(pen, (float)(cx + Math.Cos(a) * r * 0.62), (float)(cy + Math.Sin(a) * r * 0.62),
+                          (float)(cx + Math.Cos(a) * r * 1.02), (float)(cy + Math.Sin(a) * r * 1.02));
         }
+        // дене сақинасы
+        g.DrawEllipse(pen, cx - r * 0.6f, cy - r * 0.6f, r * 1.2f, r * 1.2f);
       }
+      // ортасындағы тесік (толтырылған нүкте)
+      using (Brush b = new SolidBrush(c)) g.FillEllipse(b, cx - r * 0.22f, cy - r * 0.22f, r * 0.44f, r * 0.44f);
     }
 
     // ── Жолақты салу: логотип + ONAIR + ЭФИРДЕ пилл ──────────
@@ -936,7 +940,7 @@ namespace OnAirApp {
       int airW = TextRenderer.MeasureText(g, "AIR", fWord).Width;
       float gx = tx + airW + 26, gy = bar.Height / 2f;
       gearRect = new Rectangle((int)gx - 15, (int)gy - 15, 30, 30);
-      DrawGear(g, gx, gy, 11f, gearHot ? Brand.Fg : Brand.FgMute);
+      DrawGear(g, gx, gy, 13f, gearHot ? Brand.Fg : Brand.FgMute);
     }
 
     // ── Видео аймағы: idle кезде ambient glow + нұсқаулық ────
