@@ -919,19 +919,26 @@ namespace OnAirApp {
     }
 
     void DrawGear(Graphics g, float cx, float cy, float r, Color c) {
-      using (Pen pen = new Pen(c, 2f)) {
-        pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round;
-        // тістер (денеге жалғасады)
-        for (int i = 0; i < 8; i++) {
-          double a = i * Math.PI / 4;
-          g.DrawLine(pen, (float)(cx + Math.Cos(a) * r * 0.62), (float)(cy + Math.Sin(a) * r * 0.62),
-                          (float)(cx + Math.Cos(a) * r * 1.02), (float)(cy + Math.Sin(a) * r * 1.02));
+      // Толтырылған тісті дөңгелек (трапеция тістер) + ортасында тесік
+      int teeth = 8;
+      float rOut = r, rMid = r * 0.72f, rHole = r * 0.42f;
+      double step = 2 * Math.PI / teeth;
+      List<PointF> pts = new List<PointF>();
+      double[] frac = { -0.5, -0.34, -0.28, 0.28, 0.34 };
+      float[] rad = { rMid, rMid, rOut, rOut, rMid };
+      for (int i = 0; i < teeth; i++) {
+        double th = i * step;
+        for (int k = 0; k < 5; k++) {
+          double a = th + frac[k] * step;
+          pts.Add(new PointF((float)(cx + Math.Cos(a) * rad[k]), (float)(cy + Math.Sin(a) * rad[k])));
         }
-        // дене сақинасы
-        g.DrawEllipse(pen, cx - r * 0.6f, cy - r * 0.6f, r * 1.2f, r * 1.2f);
       }
-      // ортасындағы тесік (толтырылған нүкте)
-      using (Brush b = new SolidBrush(c)) g.FillEllipse(b, cx - r * 0.22f, cy - r * 0.22f, r * 0.44f, r * 0.44f);
+      using (GraphicsPath path = new GraphicsPath()) {
+        path.AddPolygon(pts.ToArray());
+        path.AddEllipse(cx - rHole, cy - rHole, rHole * 2, rHole * 2);   // ортадағы тесік
+        path.FillMode = FillMode.Alternate;                              // тесік «ойылады»
+        using (Brush b = new SolidBrush(c)) g.FillPath(b, path);
+      }
     }
 
     // ── Жолақты салу: логотип + ONAIR + ЭФИРДЕ пилл ──────────
