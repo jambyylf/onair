@@ -472,7 +472,7 @@ namespace OnAirApp {
             ta.Stop();
             try { Directory.CreateDirectory(recDir); } catch {}
             recPath = Path.Combine(recDir, "TESTREC.mp4");
-            recProc = SpawnPanelCapture(recPath);
+            recProc = SpawnCapture(recPath, video.RectangleToScreen(video.ClientRectangle));
             Timer tb = new Timer(); tb.Interval = 5000;
             tb.Tick += delegate { tb.Stop(); try { if (recProc != null && !recProc.HasExited) recProc.Kill(); } catch {} this.Close(); }; tb.Start();
           };
@@ -1107,7 +1107,12 @@ namespace OnAirApp {
         string ts = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
         string who = (IosRunning && AndroidRunning) ? "ONAIR" : (IosRunning ? "iPhone" : "Android");
         recPath = Path.Combine(recDir, who + "_" + ts + ".mp4");
-        recProc = SpawnPanelCapture(recPath);
+        // Бір ғана телефон болса — оның НАҚ бейне аймағын (бос жолақсыз), екеуі болса — бүкіл панельді
+        Rectangle rc;
+        if (IosRunning && !AndroidRunning) rc = PanelVideoRect(natIos);
+        else if (AndroidRunning && !IosRunning) rc = PanelVideoRect(natAndroid);
+        else rc = video.RectangleToScreen(video.ClientRectangle);
+        recProc = SpawnCapture(recPath, rc);
         if (recProc == null) { recPath = null; return; }
         recStart = DateTime.Now;
         recording = true;
@@ -1126,12 +1131,10 @@ namespace OnAirApp {
         recPath = null;
       }
     }
-    // Видео-панельді .mp4-ке жазатын GStreamer процесін бастау (crash-safe moov, өлтіруге төзімді)
-    Process SpawnPanelCapture(string outPath) {
+    // Берілген экран тіктөртбұрышын .mp4-ке жазатын GStreamer процесін бастау (crash-safe moov)
+    Process SpawnCapture(string outPath, Rectangle rc) {
       string gst = Path.Combine(baseDir, "bin", "gst-launch-1.0.exe");
       if (!File.Exists(gst)) { MessageBox.Show("gst-launch-1.0.exe табылмады:\n" + gst, "ONAIR", MessageBoxButtons.OK, MessageBoxIcon.Error); return null; }
-      // Видео-панельдің ФИЗИКАЛЫҚ экран тіктөртбұрышы (DPI масштабын ескере отырып)
-      Rectangle rc = video.RectangleToScreen(video.ClientRectangle);
       IntPtr hmon = MonitorFromWindow(this.Handle, 2);              // ONAIR қай мониторда тұр
       Rectangle mb = Screen.FromHandle(this.Handle).Bounds;         // сол монитордың шекарасы (виртуал координат)
       double scale = 1.0;
@@ -1141,11 +1144,11 @@ namespace OnAirApp {
       int cw = (int)Math.Round(rc.Width * scale), ch = (int)Math.Round(rc.Height * scale);
       cw -= cw % 2; ch -= ch % 2;
       if (cw < 32 || ch < 32) { MessageBox.Show("Жазу аймағы тым кіші.", "ONAIR"); return null; }
-      int br = Math.Max(2, aBitRate) * 1000000;   // bit/сек
+      int br = 10000000;   // 10 Mbps — сапа үшін
       string pipe = "d3d11screencapturesrc monitor-handle=" + hmon.ToInt64() + " show-cursor=false"
         + " crop-x=" + cx + " crop-y=" + cy + " crop-width=" + cw + " crop-height=" + ch
         + " ! d3d11download ! videoconvert ! videorate ! video/x-raw,framerate=30/1"
-        + " ! openh264enc bitrate=" + br + " ! h264parse"
+        + " ! openh264enc bitrate=" + br + " complexity=high ! h264parse"
         + " ! mp4mux reserved-max-duration=7200000000000 reserved-moov-update-period=1000000000"
         + " ! filesink location=" + outPath.Replace('\\', '/');
       ProcessStartInfo psi = new ProcessStartInfo();
@@ -1154,6 +1157,17 @@ namespace OnAirApp {
       psi.WorkingDirectory = Path.Combine(baseDir, "bin");
       try { return Process.Start(psi); }
       catch (Exception ex) { MessageBox.Show("Қате: " + ex.Message, "ONAIR"); return null; }
+    }
+
+    // Панельдегі телефон бейнесінің НАҚ аймағы (бос жолақтарсыз; аспект сақталады)
+    Rectangle PanelVideoRect(Size nat) {
+      Rectangle p = video.RectangleToScreen(video.ClientRectangle);
+      if (nat.Width <= 0 || nat.Height <= 0) return p;
+      double a = (double)nat.Width / nat.Height, pa = (double)p.Width / p.Height;
+      int vw, vh, ox, oy;
+      if (pa > a) { vh = p.Height; vw = (int)Math.Round(vh * a); ox = (p.Width - vw) / 2; oy = 0; }
+      else { vw = p.Width; vh = (int)Math.Round(vw / a); ox = 0; oy = (p.Height - vh) / 2; }
+      return new Rectangle(p.X + ox, p.Y + oy, vw, vh);
     }
 
     void WaitExit(Process p, int ms) { try { if (p != null && !p.HasExited) p.WaitForExit(ms); } catch {} }
