@@ -309,7 +309,7 @@ namespace OnAirApp {
     // Баптаулар + тіл
     string lang = "kz";
     int aMaxSize = 0, aMaxFps = 60, aBitRate = 8, iosFps = 60;
-    bool topMost = false, screenOff = false, light = false;
+    bool topMost = false, screenOff = false, light = false, recMic = false;
     Rectangle gearRect = Rectangle.Empty; bool gearHot = false;
 
     // Жазу таймері + авто-қайта қосылу
@@ -693,6 +693,7 @@ namespace OnAirApp {
         case "close":    return P("Жабу", "Закрыть", "Close");
         case "topmost":  return P("Әрқашан үстінде", "Поверх окон", "Always on top");
         case "screenoff":return P("Экран өшіулі (Android)", "Экран выкл (Android)", "Screen off (Android)");
+        case "micrec":   return P("Микрофон (жазуда)", "Микрофон (запись)", "Microphone (recording)");
         case "yes":      return P("Иә", "Да", "Yes");
         case "no":       return P("Жоқ", "Нет", "No");
         case "theme":    return P("Тема", "Тема", "Theme");
@@ -747,6 +748,7 @@ namespace OnAirApp {
           else if (k == "top")  topMost = (v == "1");
           else if (k == "soff") screenOff = (v == "1");
           else if (k == "theme") light = (v == "1");
+          else if (k == "mic") recMic = (v == "1");
         }
       } catch {}
     }
@@ -755,7 +757,7 @@ namespace OnAirApp {
         File.WriteAllText(Path.Combine(baseDir, "settings.txt"),
           "lang=" + lang + "\r\namax=" + aMaxSize + "\r\nafps=" + aMaxFps + "\r\nabr=" + aBitRate +
           "\r\nifps=" + iosFps + "\r\ntop=" + (topMost ? "1" : "0") + "\r\nsoff=" + (screenOff ? "1" : "0") +
-          "\r\ntheme=" + (light ? "1" : "0") + "\r\n");
+          "\r\ntheme=" + (light ? "1" : "0") + "\r\nmic=" + (recMic ? "1" : "0") + "\r\n");
       } catch {}
     }
 
@@ -837,7 +839,7 @@ namespace OnAirApp {
     // ===================== Баптаулар терезесі =====================
     void OpenSettings() {
       Form d = new Form();
-      d.Text = S("settings"); d.ClientSize = new Size(450, 786);
+      d.Text = S("settings"); d.ClientSize = new Size(450, 852);
       d.StartPosition = FormStartPosition.CenterParent; d.FormBorderStyle = FormBorderStyle.FixedDialog;
       d.MaximizeBox = false; d.MinimizeBox = false; d.BackColor = Brand.Bg; d.Font = new Font("Segoe UI", 9);
       try { d.Icon = this.Icon; } catch {}
@@ -863,6 +865,8 @@ namespace OnAirApp {
         delegate (string v) { topMost = (v == "1"); this.TopMost = topMost; SaveSettings(); });
       Seg(d, ref y, S("screenoff"), new string[] { S("yes"), S("no") }, new string[] { "1", "0" }, screenOff ? "1" : "0",
         delegate (string v) { screenOff = (v == "1"); SaveSettings(); });
+      Seg(d, ref y, S("micrec"), new string[] { S("yes"), S("no") }, new string[] { "1", "0" }, recMic ? "1" : "0",
+        delegate (string v) { recMic = (v == "1"); SaveSettings(); });
 
       // ── Бағдарлама туралы (құрастырушы) ──
       Panel aboutSep = new Panel(); aboutSep.Size = new Size(404, 1); aboutSep.Location = new Point(22, y); aboutSep.BackColor = Brand.Hair; d.Controls.Add(aboutSep);
@@ -1166,12 +1170,20 @@ namespace OnAirApp {
       cw -= cw % 2; ch -= ch % 2;
       if (cw < 32 || ch < 32) { MessageBox.Show("Жазу аймағы тым кіші.", "ONAIR"); return null; }
       int br = 10000000;   // 10 Mbps — сапа үшін
-      string pipe = "d3d11screencapturesrc monitor-handle=" + hmon.ToInt64() + " show-cursor=false"
+      // Дыбыс: телефон үні = жүйелік шығысты (loopback) түсіру. Микрофон қосулы болса — араластырамыз.
+      string aud;
+      if (recMic)
+        aud = " wasapisrc loopback=true low-latency=true ! audioconvert ! audioresample ! queue ! amix."
+            + " wasapisrc low-latency=true ! audioconvert ! audioresample ! queue ! amix."
+            + " audiomixer name=amix ! avenc_aac bitrate=160000 ! aacparse ! queue ! mux.";
+      else
+        aud = " wasapisrc loopback=true low-latency=true ! audioconvert ! audioresample ! avenc_aac bitrate=160000 ! aacparse ! queue ! mux.";
+      string pipe = "mp4mux name=mux reserved-max-duration=7200000000000 reserved-moov-update-period=1000000000 ! filesink location=" + outPath.Replace('\\', '/')
+        + " d3d11screencapturesrc monitor-handle=" + hmon.ToInt64() + " show-cursor=false"
         + " crop-x=" + cx + " crop-y=" + cy + " crop-width=" + cw + " crop-height=" + ch
         + " ! d3d11download ! videoconvert ! videorate ! video/x-raw,framerate=30/1"
-        + " ! openh264enc bitrate=" + br + " complexity=high ! h264parse"
-        + " ! mp4mux reserved-max-duration=7200000000000 reserved-moov-update-period=1000000000"
-        + " ! filesink location=" + outPath.Replace('\\', '/');
+        + " ! openh264enc bitrate=" + br + " complexity=high ! h264parse ! queue ! mux."
+        + aud;
       ProcessStartInfo psi = new ProcessStartInfo();
       psi.FileName = gst; psi.Arguments = pipe;
       psi.UseShellExecute = false; psi.CreateNoWindow = true;
