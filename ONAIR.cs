@@ -283,6 +283,7 @@ namespace OnAirApp {
     Size    natIos = Size.Empty, natAndroid = Size.Empty;
     bool    embIos = false, embAndroid = false;
 
+    const string APP_VERSION = "1.0";
     Bitmap logoBmp;
     Font fDisplay, fWord, fBtn, fHint, fEyebrow, fMono;
     Panel bar; DBPanel video;
@@ -819,7 +820,7 @@ namespace OnAirApp {
     // ===================== Баптаулар терезесі =====================
     void OpenSettings() {
       Form d = new Form();
-      d.Text = S("settings"); d.ClientSize = new Size(450, 690);
+      d.Text = S("settings"); d.ClientSize = new Size(450, 752);
       d.StartPosition = FormStartPosition.CenterParent; d.FormBorderStyle = FormBorderStyle.FixedDialog;
       d.MaximizeBox = false; d.MinimizeBox = false; d.BackColor = Brand.Bg; d.Font = new Font("Segoe UI", 9);
       try { d.Icon = this.Icon; } catch {}
@@ -845,6 +846,16 @@ namespace OnAirApp {
         delegate (string v) { topMost = (v == "1"); this.TopMost = topMost; SaveSettings(); });
       Seg(d, ref y, S("screenoff"), new string[] { S("yes"), S("no") }, new string[] { "1", "0" }, screenOff ? "1" : "0",
         delegate (string v) { screenOff = (v == "1"); SaveSettings(); });
+
+      // ── Бағдарлама туралы (құрастырушы) ──
+      Panel aboutSep = new Panel(); aboutSep.Size = new Size(404, 1); aboutSep.Location = new Point(22, y); aboutSep.BackColor = Brand.Hair; d.Controls.Add(aboutSep);
+      y += 14;
+      Label about = new Label();
+      about.AutoSize = false; about.Size = new Size(406, 72); about.Location = new Point(24, y);
+      about.ForeColor = Brand.FgMute; about.Font = new Font("Segoe UI", 9.5f); about.TextAlign = ContentAlignment.TopLeft;
+      about.Text = "ONAIR  ·  " + APP_VERSION + "\nҚұрастырушы / Developer: Жамбыл\n© 2026  ·  ашық бастапқы: UxPlay · scrcpy · GStreamer";
+      d.Controls.Add(about);
+      y += 80;
 
       RoundButton close = new RoundButton();
       close.Text = S("close"); close.Font = new Font("Segoe UI Semibold", 10.5f, FontStyle.Bold);
