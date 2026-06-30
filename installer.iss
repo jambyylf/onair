@@ -21,8 +21,7 @@ UninstallDisplayIcon={app}\ONAIR.exe
 PrivilegesRequired=admin
 
 [Languages]
-Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "kz"; MessagesFile: "Kazakh.islu"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
