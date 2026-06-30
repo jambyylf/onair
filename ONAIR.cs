@@ -277,7 +277,7 @@ namespace OnAirApp {
                WS_CAPTION=0x00C00000, WS_THICKFRAME=0x00040000,
                WS_MINIMIZEBOX=0x20000, WS_MAXIMIZEBOX=0x10000, WS_SYSMENU=0x80000;
 
-    string baseDir, uxplay, scrcpyDir, scrcpy, adb, deviceFile;
+    string baseDir, uxplay, scrcpyDir, scrcpy, adb, deviceFile, dataDir;
     string[] uxArgs = { "-n","ONAIR","-s","1920x1080","-vs","d3d11videosink","-as","wasapisink" };
 
     Process procIos, procAndroid, recProc;
@@ -327,7 +327,14 @@ namespace OnAirApp {
       scrcpyDir = Path.Combine(baseDir, "scrcpy");
       scrcpy = Path.Combine(scrcpyDir, "scrcpy.exe");
       adb    = Path.Combine(scrcpyDir, "adb.exe");
-      deviceFile = Path.Combine(baseDir, "android-device.txt");
+      // Пайдаланушы деректері — жазуға болатын қалтада (Program Files-ке орнатса да жұмыс істейді)
+      dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ONAIR");
+      try { Directory.CreateDirectory(dataDir); } catch {}
+      // Ескі портативті деректерді жаңа қалтаға бір рет көшіру
+      foreach (string n in new string[] { "settings.txt", "android-device.txt", "phones.txt" }) {
+        try { string o = Path.Combine(baseDir, n), nw = Path.Combine(dataDir, n); if (File.Exists(o) && !File.Exists(nw)) File.Copy(o, nw); } catch {}
+      }
+      deviceFile = Path.Combine(dataDir, "android-device.txt");
       recDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "ONAIR");
       LoadSettings(); LoadPhones();
       this.TopMost = topMost;
@@ -735,7 +742,7 @@ namespace OnAirApp {
     // ===================== Баптауларды сақтау =====================
     void LoadSettings() {
       try {
-        string f = Path.Combine(baseDir, "settings.txt");
+        string f = Path.Combine(dataDir, "settings.txt");
         if (!File.Exists(f)) return;
         foreach (string line in File.ReadAllLines(f)) {
           int eq = line.IndexOf('='); if (eq < 1) continue;
@@ -754,7 +761,7 @@ namespace OnAirApp {
     }
     void SaveSettings() {
       try {
-        File.WriteAllText(Path.Combine(baseDir, "settings.txt"),
+        File.WriteAllText(Path.Combine(dataDir, "settings.txt"),
           "lang=" + lang + "\r\namax=" + aMaxSize + "\r\nafps=" + aMaxFps + "\r\nabr=" + aBitRate +
           "\r\nifps=" + iosFps + "\r\ntop=" + (topMost ? "1" : "0") + "\r\nsoff=" + (screenOff ? "1" : "0") +
           "\r\ntheme=" + (light ? "1" : "0") + "\r\nmic=" + (recMic ? "1" : "0") + "\r\n");
@@ -786,14 +793,14 @@ namespace OnAirApp {
     // ===================== Бірнеше телефон =====================
     void LoadPhones() {
       try {
-        string f = Path.Combine(baseDir, "phones.txt");
+        string f = Path.Combine(dataDir, "phones.txt");
         if (File.Exists(f))
           foreach (string line in File.ReadAllLines(f)) { string t = line.Trim(); if (t.Length > 0 && !phones.Contains(t)) phones.Add(t); }
         string sv = LoadDevice();
         if (sv.Length > 0 && !phones.Contains(sv)) phones.Add(sv);
       } catch {}
     }
-    void SavePhones() { try { File.WriteAllText(Path.Combine(baseDir, "phones.txt"), string.Join("\r\n", phones.ToArray())); } catch {} }
+    void SavePhones() { try { File.WriteAllText(Path.Combine(dataDir, "phones.txt"), string.Join("\r\n", phones.ToArray())); } catch {} }
     void AddPhoneToList(string dev) {
       if (dev.Length == 0) return;
       if (!phones.Contains(dev)) { phones.Add(dev); SavePhones(); }
