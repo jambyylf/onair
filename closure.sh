@@ -6,5 +6,5 @@ TMP=$(mktemp)
 } | tr -s ' \t' '\n' | grep -iE '^/ucrt64/bin/.+\.dll$' | sort -u > "$TMP"
 echo "DLL_COUNT=$(wc -l < "$TMP")"
 echo "DLL_SIZE=$(du -ch $(cat "$TMP") 2>/dev/null | tail -1 | cut -f1)"
-cp "$TMP" /c/Users/FALCON/ONAIR/needed-dlls.txt
-echo "SAVED=/c/Users/FALCON/ONAIR/needed-dlls.txt"
+cp "$TMP" ./needed-dlls.txt
+echo "SAVED=./needed-dlls.txt"

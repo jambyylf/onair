@@ -11,12 +11,12 @@ DefaultDirName={autopf}\ONAIR
 DefaultGroupName=ONAIR
 DisableProgramGroupPage=yes
 AllowNoIcons=yes
-OutputDir=C:\Users\FALCON\Desktop
+OutputDir=..\Desktop
 OutputBaseFilename=ONAIR-Setup
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-SetupIconFile=C:\Users\FALCON\ONAIR\onair.ico
+SetupIconFile=onair.ico
 UninstallDisplayIcon={app}\ONAIR.exe
 PrivilegesRequired=admin
 
@@ -27,7 +27,7 @@ Name: "kz"; MessagesFile: "Kazakh.islu"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "C:\Users\FALCON\Desktop\ONAIR-Portable\*"; DestDir: "{app}"; \
+Source: "..\Desktop\ONAIR-Portable\*"; DestDir: "{app}"; \
   Excludes: "android-device.txt,settings.txt,phones.txt,needed-dlls.txt,ONAIR.ps1,*.mp4,annot_*.png"; \
   Flags: recursesubdirs createallsubdirs ignoreversion
 
