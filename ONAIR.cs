@@ -285,7 +285,7 @@ namespace OnAirApp {
     Size    natIos = Size.Empty, natAndroid = Size.Empty;
     bool    embIos = false, embAndroid = false;
 
-    const string APP_VERSION = "1.0";
+    const string APP_VERSION = "1.1";
     Bitmap logoBmp;
     Font fDisplay, fWord, fBtn, fHint, fEyebrow, fMono;
     Panel bar; DBPanel video;

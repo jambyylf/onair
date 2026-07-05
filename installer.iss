@@ -4,7 +4,7 @@
 [Setup]
 AppId={{2C9B1E7A-4D3F-4A21-9E55-0A1B2C3D4E5F}}
 AppName=ONAIR
-AppVersion=1.0
+AppVersion=1.1
 AppPublisher=Jambyl
 AppPublisherURL=https://github.com/jambyylf/onair
 DefaultDirName={autopf}\ONAIR
