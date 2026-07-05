@@ -471,6 +471,9 @@ namespace OnAirApp {
         Timer t3 = new Timer(); t3.Interval = 8000;
         t3.Tick += delegate { t3.Stop(); if (embAndroid && !annotating) ToggleAnnot(); }; t3.Start();
       }
+      if (Environment.GetEnvironmentVariable("ONAIR_TESTPICK") == "1") {
+        this.Shown += delegate { BeginInvoke(new Action(delegate { PickPhone(); })); };
+      }
       if (Environment.GetEnvironmentVariable("ONAIR_TESTREC") == "1") {
         // Жазуды дереккөзсіз тексеру: панельді 5 сек жазып, файлды тексеру үшін жабамыз
         this.Shown += delegate {
@@ -714,6 +717,7 @@ namespace OnAirApp {
         case "done":     return P("Дайын", "Готово", "Done");
         case "save":     return P("Сақтау", "Сохранить", "Save");
         case "pick_phone": return P("Телефонды таңдаңыз", "Выберите телефон", "Choose phone");
+        case "del_phone_q": return P("Осы телефонды тізімнен өшіру керек пе?", "Удалить этот телефон из списка?", "Remove this phone from the list?");
         case "add_title": return P("Жаңа Android телефонды қосу", "Подключить новый Android", "Add a new Android phone");
         case "add_steps": return P(
           "Телефонда (бір рет):\r\n1)  About phone → «Build number» 7 рет басу\r\n2)  Developer options → «Wireless debugging» ҚОСУ\r\n3)  «Wireless debugging» жазуын басу:\r\n      •  «Pair device…» = IP, ЖҰПТАУ ПОРТЫ, PIN\r\n      •  «IP address & Port» (негізгі) = ҚОСЫЛУ ПОРТЫ",
@@ -808,8 +812,9 @@ namespace OnAirApp {
     }
 
     string PickPhone() {
+      if (phones.Count == 0) return null;
       Form d = new Form();
-      d.Text = S("pick_phone"); d.ClientSize = new Size(380, 76 + phones.Count * 48);
+      d.Text = S("pick_phone"); d.ClientSize = new Size(392, 76 + phones.Count * 48);
       d.StartPosition = FormStartPosition.CenterParent; d.FormBorderStyle = FormBorderStyle.FixedDialog;
       d.MaximizeBox = false; d.MinimizeBox = false; d.BackColor = Brand.Bg; d.Font = new Font("Segoe UI", 9);
       try { d.Icon = this.Icon; } catch {}
@@ -817,18 +822,38 @@ namespace OnAirApp {
       Label title = new Label(); title.Text = S("pick_phone"); title.Font = new Font("Segoe UI Semibold", 13, FontStyle.Bold);
       title.ForeColor = Brand.Fg; title.AutoSize = true; title.Location = new Point(20, 16); d.Controls.Add(title);
       string[] result = { null };
+      bool[] reopen = { false };
+      ToolTip tt = new ToolTip();
       int yy = 52;
       for (int i = 0; i < phones.Count; i++) {
         string ph = phones[i];
         RoundButton b = new RoundButton();
         b.Text = ph; b.Font = new Font("Consolas", 11, FontStyle.Bold);
         b.Style = RoundButton.Mode.Ghost; b.Radius = 18; b.Border = Brand.Hair;
-        b.Size = new Size(340, 40); b.Location = new Point(20, yy);
+        b.Size = new Size(296, 40); b.Location = new Point(20, yy);
         b.BackColor = Brand.Surf; b.ForeColor = Brand.Fg; b.Cursor = Cursors.Hand;
         b.Click += delegate { result[0] = ph; d.Close(); };
-        d.Controls.Add(b); yy += 48;
+        d.Controls.Add(b);
+        // ── Өшіру (✕) ──
+        RoundButton del = new RoundButton();
+        del.Text = "✕"; del.Font = new Font("Segoe UI", 12, FontStyle.Bold);
+        del.Style = RoundButton.Mode.Ghost; del.Radius = 18; del.Border = Brand.Hair;
+        del.Size = new Size(40, 40); del.Location = new Point(324, yy);
+        del.BackColor = Brand.Surf; del.ForeColor = Brand.Live; del.Cursor = Cursors.Hand;
+        tt.SetToolTip(del, S("del_phone_q"));
+        string phDel = ph;
+        del.Click += delegate {
+          if (MessageBox.Show(S("del_phone_q") + "\r\n\r\n" + phDel, "ONAIR", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes) {
+            phones.Remove(phDel); SavePhones();
+            try { if (LoadDevice() == phDel) SaveDevice(""); } catch {}
+            reopen[0] = true; d.Close();
+          }
+        };
+        d.Controls.Add(del);
+        yy += 48;
       }
       d.ShowDialog(this);
+      if (reopen[0] && phones.Count > 0) return PickPhone();   // өшіргеннен кейін жаңартылған тізімді көрсету
       return result[0];
     }
 
